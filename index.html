@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Mac Pro システムモニタリング</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background-color: #1e1e1e;
+      color: #ddd;
+      font-family: "Segoe UI", sans-serif;
+      padding: 20px;
+    }
+    h2 {
+      margin-top: 40px;
+      color: #f0f0f0;
+    }
+    .info {
+      margin-bottom: 20px;
+      font-size: 1.2em;
+    }
+    canvas {
+      background: #2c2c2c;
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 10px;
+    }
+
+    /* ローディング画面 */
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #1e1e1e;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    .spinner {
+      border: 4px solid #444;
+      border-top: 4px solid #fff;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #content {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p>読み込み中...</p>
+  </div>
+
+  <div id="content">
+    <h1>Mac Pro システムモニタリング</h1>
+    <div class="info" id="latestInfo"></div>
+
+    <h2>CPU 使用率</h2>
+    <h4>Intel(R) Xeon(R) CPU E5-1680 v2 @ 3.00GHz</h4>
+    <canvas id="cpuChart" width="800" height="250"></canvas>
+
+    <h2>RAM 使用率</h2>
+    <h4>64.0 GB DDR3</h4>
+    <canvas id="ramChart" width="800" height="250"></canvas>
+  </div>
+
+  <script>
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbyXGqNedN3ZIRIFWqQtLRSmHpMv4fOvTmzd5AYQwXq6EtPXmiooXGJjZycqq6RcunIG/exec";
+
+    fetch(GAS_URL)
+      .then(res => res.json())
+      .then(data => {
+        const info = data.latestInfo;
+        document.getElementById("latestInfo").innerHTML = `
+          <strong>IPアドレス(ローカル)：</strong> ${info.ip}　
+          <strong>最終更新日時：</strong> ${info.time}　
+          <strong>リモートアクセス：</strong> ${info.remote}
+        `;
+
+        const getLabels = arr => arr.map(e => e.time).reverse();
+        const getValues = arr => arr.map(e => e.value).reverse();
+
+        // CPU
+        new Chart(document.getElementById("cpuChart").getContext("2d"), {
+          type: "line",
+          data: {
+            labels: getLabels(data.cpuData),
+            datasets: [{
+              label: "CPU使用率",
+              data: getValues(data.cpuData),
+              borderColor: "#e74c3c",
+              backgroundColor: "rgba(231,76,60,0.2)",
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            animation: {
+              onComplete: () => {
+                document.getElementById("loading").style.display = "none";
+                document.getElementById("content").style.display = "block";
+              }
+            },
+            scales: {
+              y: {
+                suggestedMin: 0,
+                suggestedMax: 100,
+                ticks: { color: "#ccc" },
+                grid: { color: "#333" }
+              },
+              x: {
+                ticks: { color: "#ccc" },
+                grid: { color: "#333" }
+              }
+            },
+            plugins: {
+              legend: {
+                labels: { color: "#eee" }
+              }
+            }
+          }
+        });
+
+        // RAM
+        new Chart(document.getElementById("ramChart").getContext("2d"), {
+          type: "line",
+          data: {
+            labels: getLabels(data.ramData),
+            datasets: [{
+              label: "RAM使用率",
+              data: getValues(data.ramData),
+              borderColor: "#f39c12",
+              backgroundColor: "rgba(243,156,18,0.2)",
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            animation: false,
+            scales: {
+              y: {
+                suggestedMin: 0,
+                suggestedMax: 100,
+                ticks: { color: "#ccc" },
+                grid: { color: "#333" }
+              },
+              x: {
+                ticks: { color: "#ccc" },
+                grid: { color: "#333" }
+              }
+            },
+            plugins: {
+              legend: {
+                labels: { color: "#eee" }
+              }
+            }
+          }
+        });
+      });
+  </script>
+</body>
+</html>
